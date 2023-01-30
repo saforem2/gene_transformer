@@ -372,7 +372,7 @@ class ThroughputMonitor(Callback):
                 f"seconds/sample over {self.num_ranks} ranks"
             )
 
-            if self.wandb_active:
+            if self.wandb_active and pl_module.logger is not None:
                 pl_module.logger.log_text(
                     key="stats/performance",
                     columns=[

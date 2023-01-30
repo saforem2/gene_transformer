@@ -133,10 +133,10 @@ class DNATransformer(pl.LightningModule):
             shuffle=shuffle,
             drop_last=drop_last,
             batch_size=self.cfg.batch_size,
-            num_workers=self.cfg.num_data_workers,
-            prefetch_factor=self.cfg.prefetch_factor,
+            # num_workers=1,  # self.cfg.num_data_workers,
+            # prefetch_factor=self.cfg.prefetch_factor,
             pin_memory=self.cfg.pin_memory,
-            persistent_workers=self.cfg.persistent_workers,
+            # persistent_workers=self.cfg.persistent_workers,
         )
 
     def train_dataloader(self) -> DataLoader:
@@ -549,6 +549,9 @@ if __name__ == "__main__":
     os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
     torch.set_num_threads(config.num_data_workers)  # type: ignore[attr-defined]
     pl.seed_everything(config.random_seed)
+    from genslm.dist import setup_torch
+
+    _ = setup_torch(seed=1234, backend='DDP')
 
     # potential polaris fix for connection reset error
     mp.set_start_method("spawn")
