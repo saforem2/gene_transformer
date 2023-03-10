@@ -19,7 +19,7 @@ To install `genslm` on most systems:
 pip install git+https://github.com/ramanathanlab/genslm
 ```
 
-GenSLMs were trained on the [Polaris](https://www.alcf.anl.gov/polaris) and [Perlmutter](https://perlmutter.carrd.co/) supercomputers. For installation on these systems, please see [`INSTALL.md`](https://github.com/ramanathanlab/genslm/blob/main/docs/INSTALL.md).
+GenSLMs were trained on the [Polaris](https://www.alcf.anl.gov/polaris) and [Perlmutter](https://perlmutter.carrd.co/) supercomputers. For installation on these systems, please see [`INSTALL.md`](./docs/INSTALL.md)
 
 ## Usage
 
@@ -111,18 +111,18 @@ python -m genslm.hpc.submit -T polaris -a gpu_hack -q debug -t 00:10:00 -n 1 -j 
 ```
 *Module specific arguments are passed verbatim by the `-v` flag, args must be inside quotes.*
 
-For additional commands, please see [`COMMANDS.md`](https://github.com/ramanathanlab/genslm/blob/main/docs/COMMANDS.md).
+For additional commands, please see [`COMMANDS.md`](./docs/COMMANDS.md).
 
 ## Contributing
 
 Please report **bugs**, **enhancement requests**, or **questions** through the [Issue Tracker](https://github.com/ramanathanlab/genslm/issues).
 
-If you are looking to contribute, please see [`CONTRIBUTING.md`](https://github.com/ramanathanlab/genslm/blob/main/CONTRIBUTING.md).
+If you are looking to contribute, please see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 
 ## License
 
-genslm has a MIT license, as seen in the [`LICENSE.md`](https://github.com/ramanathanlab/genslm/blob/main/LICENSE.md) file.
+genslm has a MIT license, as seen in the [`LICENSE.md`](./LICENSE.md) file.
 
 ## Citations
 
