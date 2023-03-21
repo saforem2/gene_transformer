@@ -1,20 +1,18 @@
 """
-l2hmc/utils/dist.py
+genslm/dist.py
 
 Contains methods for initializing distributed communication.
 """
 from __future__ import absolute_import, annotations, division, print_function
 
 import os
+import datetime
 
 from typing import Optional, Callable
 from mpi4py import MPI
-
-# from l2hmc.utils.logger import get_pylogger
 import logging
 
 log = logging.getLogger(__name__)
-
 
 BACKENDS = [
     'deepspeed',
@@ -24,17 +22,30 @@ BACKENDS = [
     'hvd',
 ]
 
+def get_timestamp(fstr=None):
+    """Get formatted timestamp."""
+    now = datetime.datetime.now()
+    if fstr is None:
+        return now.strftime('%Y-%m-%d-%H%M%S')
+    return now.strftime(fstr)
+
+
+def seed_everything(seed: int):
+    import torch
+    import numpy as np
+    import random
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+
 
 def setup_tensorflow(
         precision: Optional[str] = None,
         ngpus: Optional[int] = None,
 ) -> int:
     import tensorflow as tf
-    # dtypes = {
-    #     'float16': tf.float16,
-    #     'float32': tf.float32,
-    #     'float64': tf.float64,
-    # }
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
     import horovod.tensorflow as hvd
@@ -61,11 +72,10 @@ def setup_tensorflow(
                 'GPU',
             )
             logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-            if hvd.rank() == 0:
-                log.info(
-                    f'{len(gpus)}, Physical GPUs and '
-                    f'{len(logical_gpus)} Logical GPUs'
-                )
+            log.info(
+                f'{len(gpus)}, Physical GPUs and '
+                f'{len(logical_gpus)} Logical GPUs'
+            )
         except RuntimeError as e:
             print(e)
     elif cpus:
@@ -79,19 +89,15 @@ def setup_tensorflow(
         except RuntimeError as e:
             # Memory growth must be set before GPUs have been initialized
             print(e)
-
     RANK = hvd.rank()
     SIZE = hvd.size()
     LOCAL_RANK = hvd.local_rank()
-    # LOCAL_SIZE = hvd.local_size()
     os.environ['RANK'] = str(RANK)
     os.environ['WORLD_SIZE'] = str(SIZE)
     os.environ['LOCAL_RANK'] = str(LOCAL_RANK)
-
-    log.warning(f'Using: {TF_FLOAT} precision')
-    log.info(f'RANK: {hvd.rank()}, LOCAL_RANK: {hvd.local_rank()}')
-    # log.info(f'Global Rank: {RANK} / {SIZE-1}')
-    # log.info(f'[{RANK}]: Local rank: {LOCAL_RANK} / {LOCAL_SIZE-1}')
+    if RANK == 0:
+        log.warning(f'Using: {TF_FLOAT} precision')
+        log.info(f'RANK: {hvd.rank()}, LOCAL_RANK: {hvd.local_rank()}')
     return RANK
 
 
@@ -199,9 +205,8 @@ def setup_torch_DDP(port: str = '2345') -> dict[str, int]:
     if (eport := os.environ.get('MASTER_PORT', None)) is None:
         os.environ['MASTER_PORT'] = port
     else:
+        log.info(f'Caught MASTER_PORT:{eport} from environment!')
         os.environ['MASTER_PORT'] = eport
-        if rank == 0:
-            log.info(f'Caught MASTER_PORT:{eport} from environment!')
 
     init_process_group(
         rank=rank,
@@ -217,15 +222,15 @@ def setup_torch_distributed(
         port: str = '2345',
 ) -> dict:
     import torch
-    rank = os.environ.get('RANK', None)
-    size = os.environ.get('WORLD_SIZE', None)
-    local_rank = os.environ.get(
-        'PMI_LOCAL_RANK',
-        os.environ.get(
-            'OMPI_COMM_WORLD_LOCAL_RANK',
-            None
-        )
-    )
+    rank = os.environ.get('RANK', get_rank())
+    size = os.environ.get('WORLD_SIZE', get_size())
+    local_rank = os.environ.get('LOCAL_RANK', get_local_rank())
+    #     'PMI_LOCAL_RANK',
+    #     os.environ.get(
+    #         'OMPI_COMM_WORLD_LOCAL_RANK',
+    #         None
+    #     )
+    # )
     be = backend.lower()
     assert be in BACKENDS
 
@@ -268,17 +273,6 @@ def setup_torch_distributed(
     return {'size': size, 'rank': rank, 'local_rank': local_rank}
 
 
-def seed_everything(seed: int):
-    import random
-    import numpy as np
-    import torch
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-
-
 def setup_torch(
         seed: int,
         backend: str = 'horovod',
@@ -301,9 +295,6 @@ def setup_torch(
     rank = dsetup['rank']
     size = dsetup['size']
     local_rank = dsetup['local_rank']
-    # size = int(get_size())
-    # rank = int(get_rank())
-    # local_rank = int(get_local_rank())
     os.environ['LOCAL_RANK'] = str(local_rank)
     os.environ['RANK'] = str(rank)
     os.environ['WORLD_SIZE'] = str(size)
@@ -315,14 +306,11 @@ def setup_torch(
     if nthreads is not None:
         torch.set_num_threads(int(nthreads))
 
-    # if precision == 'float64':
     torch.set_default_dtype(dtypes.get(precision, torch.float32))
-
     if torch.cuda.is_available():
         torch.cuda.set_device(local_rank)
 
     log.info(f'Global Rank: {rank} / {size-1}')
-    # log.info(f'[{rank}]: Local rank: {local_rank}')
     seed_everything(seed * (rank + 1) * (local_rank + 1))
     return rank
 
@@ -330,8 +318,3 @@ def setup_torch(
 def cleanup() -> None:
     import torch.distributed as tdist
     tdist.destroy_process_group()
-
-
-if __name__ == '__main__':
-    rank = setup_torch(123, 'DDP')
-    print(f'RANK: {rank}')
