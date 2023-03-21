@@ -39,6 +39,9 @@ from genslm.utils import (
     ThroughputMonitor,
 )
 
+import warnings
+warnings.filterwarnings('ignore')
+
 
 class DNATransformer(pl.LightningModule):
 
@@ -155,7 +158,9 @@ class DNATransformer(pl.LightningModule):
         return out
 
     def training_step(
-        self, batch: Dict[str, torch.Tensor], batch_idx: int
+            self,
+            batch: Dict[str, torch.Tensor],
+            batch_idx: int,
     ) -> torch.FloatTensor:
         if self.cfg.deepspeed_flops_profile and self.global_step == 5:
             print("Profiling")
@@ -176,7 +181,9 @@ class DNATransformer(pl.LightningModule):
         return loss
 
     def validation_step(
-        self, batch: Dict[str, torch.Tensor], batch_idx: int
+            self,
+            batch: Dict[str, torch.Tensor],
+            batch_idx: int
     ) -> torch.FloatTensor:
         outputs = self(batch)
         loss = outputs.loss
@@ -186,7 +193,9 @@ class DNATransformer(pl.LightningModule):
         return loss
 
     def test_step(
-        self, batch: Dict[str, torch.Tensor], batch_idx: int
+            self,
+            batch: Dict[str, torch.Tensor],
+            batch_idx: int,
     ) -> torch.FloatTensor:
         outputs = self(batch)
         loss = outputs.loss
@@ -201,7 +210,9 @@ class DNATransformer(pl.LightningModule):
         return loss
 
     def predict_step(
-        self, batch: Dict[str, torch.Tensor], batch_idx: int
+            self,
+            batch: Dict[str, torch.Tensor],
+            batch_idx: int
     ) -> ModelOutput:
         return self(batch, output_hidden_states=True, output_attentions=True)
 
@@ -225,20 +236,26 @@ class DNATransformer(pl.LightningModule):
                 warmup_max_lr=self.cfg.learning_rate,
                 warmup_num_steps=self.cfg.warm_up_lr.num_steps,
             )
-            return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
+            return (
+                [optimizer],
+                [{"scheduler": scheduler, "interval": "step"}]
+            )
 
         if self.cfg.lr_plateau is not None:
             scheduler = ReduceLROnPlateau(
-                optimizer=optimizer, **self.cfg.lr_plateau.dict(), verbose=True
+                optimizer=optimizer,
+                **self.cfg.lr_plateau.dict(),
+                verbose=True
             )
-            return [optimizer], [
-                {
+            return (
+                [optimizer],
+                [{
                     "scheduler": scheduler,
                     "interval": "step",
                     "monitor": "val/loss",
                     "frequency": self.cfg.val_check_interval,
-                }
-            ]
+                }],
+            )
 
         if self.cfg.lr_cosine_with_warmup is not None:
 
